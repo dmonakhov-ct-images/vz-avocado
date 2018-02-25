@@ -1,0 +1,54 @@
+#! /bin/bash -e
+#
+# avocado harness for vzt-test framework
+#
+# Example:  vzt-avrun setupvm/00main.py execute -- --vt=vzctl2 --ts=my-host
+#
+
+status=1
+while [ "$1" != "" ]; do
+    case $1 in
+	--keep)
+	    keep=1
+	    ;;
+	--no-vzt-export)
+	    no_vzt_export=t
+	    ;;
+	*)
+	    break
+    esac
+    shift
+done
+
+unescape() {
+    for x in "$@"
+    do
+	printf "%q "  "$x"
+    done
+}
+echo $ret
+
+tmp=`mktemp -d /tmp/vzt-avrun-XXXXXXX`
+cmd="$@"
+unescape_cmd=$(unescape "$@")
+vzt_dir=`realpath $(dirname "$1")/../`
+log_opt='--log-dir="$AVOCADO_TEST_OUTPUTDIR"'
+script_name="${cmd//[^[:alnum:]-]/_}.sh"
+
+echo '#!/bin/sh' > $tmp/$script_name
+echo "vzt_dir=$vzt_dir" >> $tmp/$script_name
+echo "pushd `pwd`" >> $tmp/$script_name
+echo "python $unescape_cmd $log_opt" >> $tmp/$script_name
+if test -z "$no_vzt_export"; then
+    echo 'status=$?' >> $tmp/$script_name
+    echo 'python $vzt_dir/vztlib/lib/vztests/export_results.py -d $AVOCADO_TEST_OUTPUTDIR' >> $tmp/$script_name
+    echo 'exit $status'
+fi
+avocado --show test run --external-runner=/bin/sh --external-runner-chdir=runner $tmp/$script_name
+status=$?
+
+if test -z "$keep"; then
+	unlink $tmp/$script_name
+	rmdir $tmp
+fi
+exit $status

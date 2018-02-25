@@ -17,14 +17,23 @@ while [ "$1" != "" ]; do
 	esac
 	shift
 done
+unescape() {
+    for x in "$@"
+    do
+	printf "%q "  "$x"
+    done
+}
+
+echo $ret
 
 tmp=`mktemp -d /tmp/XXXXXXX`
 cmd="$@"
+unescape_cmd=$(unescape "$@")
 script_name="${cmd//[^[:alnum:]-]/_}.sh"
 
 echo '#!/bin/sh' > $tmp/$script_name
 echo "pushd `pwd`" >> $tmp/$script_name
-echo "$@" >> $tmp/$script_name
+echo "$unescape_cmd" >> $tmp/$script_name
 
 ln -s /bin/sh $tmp/sh
 avocado --show test run --external-runner=$tmp/sh --external-runner-chdir=runner $script_name
